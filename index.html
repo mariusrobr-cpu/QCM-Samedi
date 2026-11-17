@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>QCM Samedi</title>
+<style>
+:root{--bg:#fafafa;--fg:#111;--mute:#666;--line:#ddd;--acc:#c8102e;--accfg:#fff;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e0e0e;--fg:#f2f2f2;--mute:#999;--line:#333;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e0e0e;--fg:#f2f2f2;--mute:#999;--line:#333;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--fg);font-family:Georgia,"Times New Roman",serif}
+main{max-width:480px;margin:0 auto;padding:40px 22px;min-height:100vh;display:flex;flex-direction:column;justify-content:center}
+.tag{font:600 12px/1 system-ui,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--acc);margin-bottom:18px}
+h1{font-size:30px;line-height:1.2;margin:0 0 14px;font-weight:700}
+p{color:var(--mute);line-height:1.5;margin:0 0 24px}
+.opt,.btn{display:block;width:100%;text-align:left;font:16px system-ui,sans-serif;padding:14px 16px;margin:0 0 10px;border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:8px;cursor:pointer}
+.opt:hover,.opt:focus{border-color:var(--acc)}
+.opt.sel{border-color:var(--acc);background:var(--acc);color:var(--accfg)}
+.btn.main{background:var(--acc);border-color:var(--acc);color:var(--accfg);text-align:center;font-weight:600}
+.row{display:flex;gap:10px;align-items:center}
+.row .btn{margin:0;text-align:center}
+#no{position:relative}
+#no.run{position:fixed;z-index:9}
+.bar{height:2px;background:var(--line);margin-bottom:28px}
+.bar i{display:block;height:100%;background:var(--acc);width:0;transition:width .3s}
+.hide{display:none}
+.recap{border-left:2px solid var(--acc);padding-left:14px;margin:0 0 24px;font:15px/1.6 system-ui,sans-serif}
+.lbl{flex:1;font:14px system-ui,sans-serif;color:var(--mute)}.lbl input,#otx{display:block;width:100%;margin-top:6px;padding:12px;font:16px system-ui,sans-serif;color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:8px}.lbl input:focus,#otx:focus{outline:none;border-color:var(--acc)}
+</style>
+</head>
+<body>
+<main>
+  <div class="bar"><i id="bar"></i></div>
+  <div id="app"></div>
+</main>
+<script>
+// ====== À MODIFIER ======
+var PHONE = "0664670429"; // ton numéro (ex: "0612345678") pour recevoir ses réponses par SMS
+var STEPS = [
+  {type:"time", q:"Samedi, tu serais dispo de quelle heure à quelle heure ?", label:"Heure"},
+  {type:"choice", q:"Une activité qui te tente ?", label:"Activité", o:["🎡 Foire","🏙️ Chiller en ville","🍹 Se poser en terrasse","✍️ Autre"], other:"✍️ Autre"},
+  {type:"choice", q:"Pour le repas du soir ?", label:"Repas", o:["🍔 Burger","🍣 Sushis","🌯 Kebab","🥗 Sain"]},
+  {type:"choice", q:"Et pour la suite de la soirée ?", label:"Soirée", o:["🚶 Balade","🎳 Activité","🎉 Mid"]}
+];
+// ========================
+
+var app = document.getElementById("app"), bar = document.getElementById("bar");
+var answers = [], when = "", step = -1, total = STEPS.length;
+
+function esc(t){ var d=document.createElement("div"); d.textContent=t; return d.innerHTML; }
+function prog(){ bar.style.width = Math.max(0,(step+1)/(total+1)*100) + "%"; }
+function el(h){ app.innerHTML = h; prog(); }
+function next(i){ i + 1 < STEPS.length ? ask(i+1) : done(); }
+
+
+function ask(i){
+  step = i;
+  var S = STEPS[i];
+  var h = '<div class="tag">Question ' + (i+1) + ' / ' + STEPS.length + '</div><h1>' + S.q + '</h1>';
+  if (S.type === "time") {
+    h += '<div class="row" style="margin-bottom:14px"><label class="lbl">De<input type="time" id="t1" value="14:00"></label><label class="lbl">À<input type="time" id="t2" value="23:00"></label></div><p id="err" style="color:var(--acc);margin:0 0 14px"></p><button class="btn main" id="ok">Valider</button>';
+    el(h);
+    document.getElementById("ok").onclick = function(){
+      var a = document.getElementById("t1").value, b = document.getElementById("t2").value;
+      if (!a || !b) { document.getElementById("err").textContent = "Il manque une heure."; return; }
+      if (b <= a) { document.getElementById("err").textContent = "La fin doit être après le début (sauf si tu es une voyageuse temporelle)."; return; }
+      answers[i] = "de " + a.replace(":","h") + " à " + b.replace(":","h");
+      next(i);
+    };
+    return;
+  }
+  S.o.forEach(function(t,k){ h += '<button class="opt" data-k="' + k + '">' + t + '</button>'; });
+  h += '<div id="oth" class="hide"><input type="text" id="otx" placeholder="Dis-moi tout…" maxlength="80"><button class="btn main" id="ok" style="margin-top:10px">Valider</button></div>';
+  el(h);
+  Array.prototype.forEach.call(app.querySelectorAll(".opt"), function(b){
+    b.onclick = function(){
+      var v = S.o[+b.dataset.k];
+      Array.prototype.forEach.call(app.querySelectorAll(".opt"), function(x){ x.classList.remove("sel"); });
+      b.classList.add("sel");
+      if (S.other && v === S.other) {
+        document.getElementById("oth").classList.remove("hide");
+        document.getElementById("otx").focus();
+        document.getElementById("ok").onclick = function(){
+          var t = document.getElementById("otx").value.trim();
+          if (!t) return;
+          answers[i] = "Autre : " + t; next(i);
+        };
+        return;
+      }
+      answers[i] = v;
+      setTimeout(function(){ next(i); }, 250);
+    };
+  });
+}
+
+var tries = 0, msgs = ["Non","Hop, raté","Trop lent","Tu veux pas plutôt dire oui ?","Je suis un bouton très rapide","Bon, ça devient gênant","Abandonne","Appuie sur Oui, c’est plus simple"];
+
+function intro(){
+  step = -1;
+  el('<div class="tag">Pour Amandine</div><h1>Tu veux faire un date samedi ?</h1><p>Tu as le droit de réfléchir. Pas longtemps.</p><div class="row"><button class="btn main" id="yes">Oui</button><button class="btn" id="no">Non</button></div>');
+  tries = 0;
+  document.getElementById("yes").onclick = function(){ ask(0); };
+  var no = document.getElementById("no");
+  function flee(e){
+    e.preventDefault();
+    tries++;
+    no.textContent = msgs[Math.min(tries, msgs.length-1)];
+    no.classList.add("run");
+    var w = no.offsetWidth, h = no.offsetHeight;
+    var x = Math.random() * (window.innerWidth - w - 20) + 10;
+    var y = Math.random() * (window.innerHeight - h - 20) + 10;
+    no.style.left = x + "px"; no.style.top = y + "px";
+  }
+  no.addEventListener("mouseover", flee);
+  no.addEventListener("touchstart", flee, {passive:false});
+  no.addEventListener("click", flee);
+}
+
+function done(){
+  step = total;
+  var body = "Amandine a dit OUI ! Samedi : " + answers.join(" / ");
+  var h = '<div class="tag">Validé</div><h1>Excellent choix.</h1><p>Voici ton dossier :</p><div class="recap">';
+  STEPS.forEach(function(S,i){ h += esc(S.label) + ' : <b>' + esc(answers[i]) + '</b><br>'; });
+  h += '</div>';
+  if (PHONE) h += '<a class="btn main" style="text-decoration:none;display:block" href="sms:' + PHONE + '?&body=' + encodeURIComponent(body) + '">Envoyer ma réponse</a>';
+  el(h);
+}
+intro();
+</script>
+</body>
+</html>
